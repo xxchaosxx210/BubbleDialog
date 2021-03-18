@@ -93,7 +93,7 @@ class TextBox:
         self.PADDING = 40
         self.rect = wx.Rect(0, 0, 0, 0)
         self.bck_pen = wx.Pen(wx.Colour(100, 100, 100, 100), 2)
-        self.bck_brush = wx.Brush(wx.Colour(200, 200, 200, 200))
+        self.bck_brush = wx.Brush(wx.Colour(200, 200, 200, 220))
 
     def resize(self, rect: wx.Rect):
         for line in self.lines:
