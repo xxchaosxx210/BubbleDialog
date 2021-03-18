@@ -5,7 +5,8 @@ from collections import namedtuple
 
 from geometry.vector import Vector
 
-_MAX_VELOCITY = 40
+_MIN_VELOCITY = 1
+_MAX_VELOCITY = 1
 
 _MIN_BUBBLE_SIZE = 2
 _MAX_BUBBLE_SIZE = 10
@@ -18,11 +19,11 @@ _DCColour = namedtuple("Colour", ["pen", "brush"])
 
 def get_display_rate():
     video_mode = wx.Display().GetCurrentMode()
-    return 1 / video_mode.refresh
+    return video_mode.refresh / 1000
 
 
-def _random_velocity(_max=_MAX_VELOCITY):
-    return random.randint(2, _max)
+def _random_velocity(_min=_MIN_VELOCITY, _max=_MAX_VELOCITY):
+    return random.randint(_min, _max)
 
 
 def generate_random_bubble(rect: wx.Rect):
@@ -34,11 +35,12 @@ def generate_random_bubble(rect: wx.Rect):
 
 class BubbleDialog(wx.Dialog):
 
-    def __init__(self, parent, _id, title, message, size=wx.DefaultSize, pos=wx.DefaultPosition):
+    def __init__(self, parent: wx.Window, _id: int, title: str,
+                 lines: list, size: tuple = wx.DefaultSize, pos: tuple = wx.DefaultPosition):
         super().__init__()
         self.Create(parent=parent, id=_id, title=title, size=size, pos=pos, style=wx.DEFAULT_DIALOG_STYLE)
 
-        self.canvas = Canvas(self, -1, message)
+        self.canvas = Canvas(self, -1, lines)
 
         gs = wx.GridSizer(cols=1, rows=1, hgap=0, vgap=0)
         gs.Add(self.canvas, 1, wx.ALL | wx.EXPAND, 0)
@@ -76,24 +78,87 @@ class Bubble:
             self.off_screen = True
 
 
+class TextBox:
+
+    def __init__(self, canvas: wx.Panel, lines: list):
+        self.lines = []
+        for line in lines:
+            self.lines.append(Line(canvas, line))
+        self.PADDING = 10
+        self.rect = wx.Rect(0, 0, 0, 0)
+        self.bck_pen = wx.Pen(wx.Colour(100, 100, 100, 100), 2)
+        self.bck_brush = wx.Brush(wx.Colour(200, 200, 200, 100))
+
+    def resize(self, rect: wx.Rect):
+        for line in self.lines:
+            line.update()
+        self._define_size()
+        self.rect.x = (rect.width/2) - (self.rect.width/2) - self.PADDING
+        self.rect.y = (rect.height/2) - (self.rect.height/2) - self.PADDING
+        self.centre_lines()
+
+    def _define_size(self):
+        rect = wx.Rect(0, 0, 0, 0)
+        self.rect.height = self.PADDING
+        for line in self.lines:
+            if line.rect.width > rect.width:
+                rect.width = line.rect.width + self.PADDING
+            if line.rect.height > rect.height:
+                rect.height = line.rect.height
+            self.rect.height += line.rect.height
+            self.rect.height += self.PADDING
+        self.rect.width = rect.width
+
+    def centre_lines(self):
+        y_offset = self.rect.y + self.PADDING
+        for line in self.lines:
+            line.rect.y = y_offset
+            line.rect.x = self.rect.x + ((self.rect.width / 2) - (line.rect.width / 2))
+            y_offset = y_offset + self.PADDING + line.rect.height
+        for line in self.lines:
+            print(line)
+
+    def __str__(self):
+        return f"x = {self.rect.x}, y = {self.rect.y}, width = {self.rect.width}, height = {self.rect.height}"
+
+
+class Line:
+
+    def __init__(self, canvas: wx.Panel, text: str):
+        self.text = text
+        self.canvas = canvas
+        self.font = canvas.GetFont()
+        self.rect = wx.Rect(0, 0, 0, 0)
+
+    def update(self):
+        dc = wx.ClientDC(self.canvas)
+        size = dc.GetFullTextExtent(self.text)
+        self.rect.width = size[0]
+        self.rect.height = size[1]
+
+    def __str__(self):
+        return f"x = {self.rect.x}, y = {self.rect.y}, width = {self.rect.width}, height = {self.rect.height}"
+
+
 class Canvas(wx.Panel):
 
-    def __init__(self, parent, _id, text):
+    def __init__(self, parent: wx.Dialog, _id: int, lines: list):
         super().__init__(parent, _id)
         self.SetDoubleBuffered(True)
         self._bitmap = wx.Bitmap()
         self.dc_bck = _DCColour(wx.Pen(wx.Colour(255, 255, 255)),
                                 wx.Brush(wx.Colour(255, 255, 255)))
-        self.text = text
+        self.textbox = TextBox(self, lines)
         self.timer = wx.Timer(self)
         self.bubbles = []
         self.Bind(wx.EVT_TIMER, self.loop)
         self.Bind(wx.EVT_PAINT, self._on_paint)
         self.Bind(wx.EVT_SIZE, self._on_size)
 
-    def _on_size(self, evt):
+    def _on_size(self, evt: wx.SizeEvent):
         self._bitmap = wx.Bitmap()
         self._bitmap.Create(evt.GetSize())
+        self.textbox.resize(self.GetRect())
 
     def start_frame_loop(self, evt):
         rect = self.GetParent().default_size
@@ -106,17 +171,18 @@ class Canvas(wx.Panel):
         self.timer.Start(frame_rate)
 
     def loop(self, evt):
-        dt = time.monotonic() / 1000000
-        for bubble in self.bubbles:
-            bubble.update(dt)
+        dt = time.monotonic() / 10000000
+        if dt > 0.16:
+            dt = 0.16
         for bubble in reversed(self.bubbles):
+            bubble.update(dt)
             if bubble.off_screen:
                 self.bubbles.remove(bubble)
                 self.bubbles.append(generate_random_bubble(self.GetRect()))
         self.Refresh()
 
     def _on_paint(self, evt):
-        dc = wx.BufferedPaintDC(self, self._bitmap)
+        dc = wx.GCDC(wx.BufferedPaintDC(self, self._bitmap))
         dc.Clear()
         dc.SetPen(self.dc_bck.pen)
         dc.SetBrush(self.dc_bck.brush)
@@ -125,4 +191,11 @@ class Canvas(wx.Panel):
             dc.SetPen(bubble.pen)
             dc.SetBrush(bubble.brush)
             dc.DrawCircle(bubble.position.x, bubble.position.y, bubble.radius)
+        dc.SetPen(self.textbox.bck_pen)
+        dc.SetBrush(self.textbox.bck_brush)
+        dc.DrawRectangle(rect=self.textbox.rect)
+        dc.SetPen(wx.BLACK_PEN)
+        dc.SetBrush(wx.BLACK_BRUSH)
+        for line in self.textbox.lines:
+            dc.DrawText(line.text, line.rect.x, line.rect.y)
 

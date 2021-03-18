@@ -19,7 +19,7 @@ class TestFrame(wx.Frame):
         self.SetSize((300, 300))
 
     def _on_launch(self, evt):
-        dlg = BubbleDialog(self, -1, "", "", (640, 480))
+        dlg = BubbleDialog(self, -1, "", ["Test Program", "coded by Paul Millar", "https://github.com/xxchaosxx210"], (640, 480))
         dlg.ShowModal()
         dlg.Destroy()
 
