@@ -21,7 +21,7 @@ _DCColour = namedtuple("Colour", ["pen", "brush"])
 
 class Bubble:
 
-    def __init__(self, x, y, radius):
+    def __init__(self, x: int, y: int, radius: int):
         self.diameter = radius * 2
         self.radius = radius
         self.position = Vector(x, y)
@@ -45,7 +45,7 @@ def get_display_rate() -> float:
     return 1 / video_mode.refresh
 
 
-def _random_velocity(_min=_MIN_VELOCITY, _max=_MAX_VELOCITY) -> int:
+def _random_velocity(_min: int = _MIN_VELOCITY, _max: int = _MAX_VELOCITY) -> int:
     return random.randint(_min, _max)
 
 
@@ -75,7 +75,7 @@ class BubbleDialog(wx.Dialog):
 
         self.default_size = wx.Rect(0, 0, *size)
 
-    def _on_close(self, evt):
+    def _on_close(self, evt: wx.CloseEvent):
         self.canvas.queue.put("quit")
         evt.Skip()
 
@@ -171,7 +171,7 @@ class Canvas(wx.Panel):
         self._bitmap.Create(evt.GetSize())
         self.textbox.resize(self.GetRect())
 
-    def start_frame_loop(self, evt):
+    def start_frame_loop(self, evt: wx.InitDialogEvent):
         rect = self.GetParent().default_size
         for i in range(random.randint(_MIN_BUBBLE_AMOUNT, _MAX_BUBBLE_AMOUNT)):
             start_x = random.randint(0, int(round(rect.width)))
@@ -198,7 +198,7 @@ class Canvas(wx.Panel):
                         self.bubbles.append(generate_random_bubble(self.GetRect()))
                 self.Refresh()
 
-    def _on_paint(self, evt):
+    def _on_paint(self, evt: wx.PaintEvent):
         dc = wx.GCDC(wx.BufferedPaintDC(self, self._bitmap))
         dc.Clear()
         dc.SetPen(self.dc_bck.pen)
