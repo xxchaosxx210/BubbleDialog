@@ -19,16 +19,37 @@ _MAX_BUBBLE_AMOUNT = 200
 _DCColour = namedtuple("Colour", ["pen", "brush"])
 
 
-def get_display_rate():
+class Bubble:
+
+    def __init__(self, x, y, radius):
+        self.diameter = radius * 2
+        self.radius = radius
+        self.position = Vector(x, y)
+        self.velocity = Vector(0, y)
+        self.velocity.y = _random_velocity()
+        self.off_screen = False
+        self.brush = wx.Brush(wx.Colour(255, 255, 255))
+        self.pen = wx.Pen(wx.Colour(0, 0, 0), 1)
+
+    def update(self, dt: float):
+        self.position = self.position - self.velocity * dt
+        self.check_bounds()
+
+    def check_bounds(self):
+        if self.position.y <= 0:
+            self.off_screen = True
+
+
+def get_display_rate() -> float:
     video_mode = wx.Display().GetCurrentMode()
     return 1 / video_mode.refresh
 
 
-def _random_velocity(_min=_MIN_VELOCITY, _max=_MAX_VELOCITY):
+def _random_velocity(_min=_MIN_VELOCITY, _max=_MAX_VELOCITY) -> int:
     return random.randint(_min, _max)
 
 
-def generate_random_bubble(rect: wx.Rect):
+def generate_random_bubble(rect: wx.Rect) -> Bubble:
     start_x = random.randint(0, int(round(rect.width)))
     start_y = random.randint(rect.height, rect.height + 100)
     radius = random.randint(3, 17)
@@ -57,27 +78,6 @@ class BubbleDialog(wx.Dialog):
     def _on_close(self, evt):
         self.canvas.queue.put("quit")
         evt.Skip()
-
-
-class Bubble:
-
-    def __init__(self, x, y, radius):
-        self.diameter = radius * 2
-        self.radius = radius
-        self.position = Vector(x, y)
-        self.velocity = Vector(x, y)
-        self.velocity.y = _random_velocity()
-        self.off_screen = False
-        self.brush = wx.Brush(wx.Colour(255, 255, 255))
-        self.pen = wx.Pen(wx.Colour(0, 0, 0), 1)
-
-    def update(self, dt: float):
-        self.position.y = self.position.y - self.velocity.y * dt
-        self.check_bounds()
-
-    def check_bounds(self):
-        if self.position.y <= 0:
-            self.off_screen = True
 
 
 class TextBox:
